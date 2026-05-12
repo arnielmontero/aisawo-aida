@@ -1,0 +1,8 @@
+{
+  "name": "sawo-chat-backend",
+  "version": "1.0.0",
+  "description": "SAWO chat widget backend — Vercel + Turso",
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
+}
