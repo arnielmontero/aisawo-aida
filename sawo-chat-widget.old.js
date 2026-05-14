@@ -155,11 +155,40 @@ Every session: use bench towels; after session leave heater on 30 min to dry, th
 - Europe / Netherlands: De Vest 24, 5555 XL Valkenswaard | Tel: +358 40 016 8269 | europehub@sawo.com
 - Website: sawo.com
 
+=== CONTACT COLLECTION ===
+
+WHEN TO COLLECT:
+- User has unresolved technical issue after 2+ attempts → type: "support"
+- User is inquiring about buying/distributor/pricing → type: "inquiry"
+
+REQUIRED (must have all 3 before submitting):
+- Full Name
+- Email
+- Country
+
+OPTIONAL (ask once casually, skip if declined):
+- Phone → use "N/A" if not given
+
+RULES:
+- Ask naturally, one at a time — never a form-like list
+- Never ask for info already given
+- Confirm summary before submitting
+- After submit, ask if anything else
+- Stay open until user says done
+
+WHEN READY TO SUBMIT — include this tag in your reply:
+[SUBMIT type="..." name="..." email="..." phone="..." country="..." subject="..." message="..."]
+
+subject = short title you generate
+message = full summary you write from the conversation
+
 === END OF KNOWLEDGE BASE ===`;
 
   // ── STATE ──
   const conversation = [];
   let isOpen = false;
+  let contactInfo = {};
+  let submission = [];
 
   // ── INJECT STYLES ──
   const style = document.createElement('style');
@@ -598,6 +627,35 @@ Every session: use bench towels; after session leave heater on 30 min to dry, th
     messages.scrollTop = messages.scrollHeight;
   }
 
+  function parseSubmitTag(attrString) {
+    const result = {};
+    const pattern = /(\w+)="([^"]*)"/g;
+    let m;
+    while ((m = pattern.exec(attrString)) !== null) {
+      result[m[1]] = m[2];
+    }
+    return result;
+  }
+
+  function showSubmitJSON(data) {
+    const json = JSON.stringify(data, null, 2);
+    const div = document.createElement('div');
+    div.className = 'sawo-msg ai';
+    div.innerHTML = `
+      <img class="sawo-msg-avatar" src="${SAWO_LOGO}" alt="Maya" onerror="this.style.display='none'">
+      <div>
+        <div class="sawo-bubble" style="background:#f0fdf4;border:1px solid #bbf7d0;max-width:280px;">
+          <div style="font-size:10px;font-weight:700;color:#16a34a;margin-bottom:6px;letter-spacing:0.05em;">
+            ✓ SUBMITTED TO ODOO
+          </div>
+          <pre style="font-size:11px;color:#1a1a1a;white-space:pre-wrap;margin:0;font-family:monospace;line-height:1.6;">${json}</pre>
+        </div>
+        <div class="sawo-meta">${getTime()}</div>
+      </div>`;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
   // ── AUTO RESIZE TEXTAREA ──
   textarea.addEventListener('input', () => {
     textarea.style.height = 'auto';
@@ -648,9 +706,21 @@ Every session: use bench towels; after session leave heater on 30 min to dry, th
     const typing = appendTyping();
     try {
       const reply = await callModel();
-      conversation.push({ role: 'assistant', content: reply });
-      typing.remove();
-      appendMsg('ai', reply);
+      const submitMatch = reply.match(/\[SUBMIT([^\]]*)\]/s);
+      if (submitMatch) {
+        const data = parseSubmitTag(submitMatch[1]);
+        Object.assign(contactInfo, data);
+        submissions.push(data);
+        const cleanReply = reply.replace(/\[SUBMIT[^\]]*\]/s, '').trim();
+        conversation.push({ role: 'assistant', content: cleanReply });
+        typing.remove();
+        appendMsg('ai', cleanReply);
+        showSubmitJSON(data);
+      } else {
+        conversation.push({ role: 'assistant', content: reply });
+        typing.remove();
+        appendMsg('ai', reply);
+      }
     } catch (err) {
       typing.remove();
       showError(err.message || String(err));

@@ -3,9 +3,6 @@
   // ── STATE ──
   const conversation = [];
   let isOpen = false;
-  let contactInfo = {};
-  let submissions  = [];
-  let pendingPreview = null;
 
   // ── INJECT STYLES ──
   const style = document.createElement('style');
@@ -595,66 +592,7 @@
     messages.scrollTop = messages.scrollHeight;
   }
 
-
-
-  // function parseSubmitTag(attrString) {
-  //   const result = {};
-  //   const pattern = /(\w+)="([^"]*)"/g;
-  //   let m;
-  //   while ((m = pattern.exec(attrString)) !== null) {
-  //     result[m[1]] = m[2];
-  //   }
-  //   return result;
-  // }
-
-  function parsePreview(text) {
-    const get = (label) => {
-      const match = text.match(new RegExp(label + '[:\\s]+(.+)', 'i'));
-      return match ? match[1].replace(/\*\*/g, '').trim() : null;
-    };
-    const fullName = get('Name') || '';
-    const nameParts = fullName.split(' ');
-    return {
-      type:            get('Type'),
-      subject:         get('Subject'),
-      fname:           nameParts[0] || null,
-      lname:           nameParts.slice(1).join(' ') || null,
-      email:           get('Email'),
-      phone:           get('Phone') === 'Not provided' ? 'N/A' : get('Phone'),
-      country:         get('Country'),
-      productCategory: get('Product Category'),
-      productName:     get('Product Name'),
-      productCode:     get('Product Code'),
-      serialNumber:    get('Serial Number'),
-      purchaseInvoice: get('Purchase Invoice'),
-      issue:           get('Issue'),
-      orderNumber:     get('Order Number'),
-      describeIssue:   get('Describe Issue'),
-      message:         get('Message'),
-    };
-  }
-
-  function showSubmitJSON(data) {
-    console.log('showSubmitJSON called with:', data);
-    fetch('/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    .then(res => res.json())
-    .then((result) => {
-      console.log('Submitted to /api/contact:', result);
-    })
-    .catch((err) => {
-      console.error('Submission error:', err);
-      const div = document.createElement('div');
-      div.className = 'sawo-error';
-      div.textContent = '⚠ Submission failed. Please try again.';
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    });
-  }
-
+  // ── AUTO RESIZE ──
   textarea.addEventListener('input', () => {
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
@@ -681,21 +619,10 @@
     return data.reply;
   }
 
-   // ── SEND ──
+  // ── SEND ──
   async function send() {
     const text = textarea.value.trim();
     if (!text || sendBtn.disabled) return;
-
-    // detect user confirmation
-    const confirmWords = ['yes', 'go', 'go ahead', 'correct', 'proceed',
-                          'sure', 'ok', 'okay', 'yep', 'confirmed'];
-    const isConfirm = confirmWords.some(w => text.toLowerCase().includes(w));
-    if (isConfirm && pendingPreview) {
-      const data = parsePreview(pendingPreview);
-      pendingPreview = null;
-      contactInfo = {};
-      showSubmitJSON(data);
-    }
 
     conversation.push({ role: 'user', content: text });
     appendMsg('user', text);
@@ -707,16 +634,9 @@
     const typing = appendTyping();
     try {
       const reply = await callModel();
-
-      // detect preview in AI reply
-      if (reply.includes('Does everything look correct?')) {
-        pendingPreview = reply;
-      }
-
       conversation.push({ role: 'assistant', content: reply });
       typing.remove();
       appendMsg('ai', reply);
-
     } catch (err) {
       typing.remove();
       showError(err.message || String(err));
@@ -726,6 +646,5 @@
       textarea.focus();
     }
   }
-
 
 })();
